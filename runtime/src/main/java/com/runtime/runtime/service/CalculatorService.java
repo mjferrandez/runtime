@@ -1,33 +1,43 @@
 package com.runtime.runtime.service;
 
+import com.runtime.runtime.dto.*;
 import com.runtime.runtime.model.*;
 import com.runtime.runtime.repository.DistanceRequestRepository;
 import com.runtime.runtime.repository.PaceRequestRepository;
 import com.runtime.runtime.repository.TotalTimeRepository;
-import com.runtime.runtime.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class CalculatorService {
 
-    @Autowired
-    private PaceRequestRepository paceRequestRepository;
+    private final PaceRequestRepository paceRequestRepository;
+
+    private final DistanceRequestRepository distanceRequestRepository;
+
+    private final TotalTimeRepository totalTimeRepository;
+
+    private final MapperService mapperService;
 
     @Autowired
-    private DistanceRequestRepository distanceRequestRepository;
+    public CalculatorService(PaceRequestRepository paceRequestRepository, DistanceRequestRepository distanceRequestRepository, TotalTimeRepository totalTimeRepository, MapperService mapperService) {
+        this.paceRequestRepository = paceRequestRepository;
+        this.distanceRequestRepository = distanceRequestRepository;
+        this.totalTimeRepository = totalTimeRepository;
+        this.mapperService = mapperService;
+    }
 
-    @Autowired
-    private TotalTimeRepository totalTimeRepository;
+    public  PaceDTO calculatePace(PaceRequestDTO paceRequestDTO){
 
-    public  Pace calculatePace(PaceRequest paceRequest){
+        PaceRequest paceRequest = mapperService.toEntity(paceRequestDTO);
 
         //Pace calculation
-
         double kilometers = (paceRequest.getDistance().getMeter()/1000.0) + paceRequest.getDistance().getKilometer();
-        double totalTime = (paceRequest.getTotalTime().getSec()/60.0) + paceRequest.getTotalTime().getMin() + (paceRequest.getTotalTime().getHour() * 60.0);
+        double totalTimeInMinutes = paceRequest.getTotalTime().getSec()/60.0 +
+                                    paceRequest.getTotalTime().getMin() +
+                                    (paceRequest.getTotalTime().getHour() * 60.0);
 
-        double pace = totalTime/kilometers;
+        double pace = totalTimeInMinutes/kilometers;
 
         int min = (int) pace;
         double fractionalPart = pace - min;
@@ -41,14 +51,20 @@ public class CalculatorService {
         paceRequestRepository.save(paceRequest);
 
 
-        return paceCalculated;
+        return mapperService.toDTO(paceCalculated);
     }
 
-    public  Distance calculateDistance(DistanceRequest distanceRequest){
+    public DistanceDTO calculateDistance(DistanceRequestDTO distanceRequestDTO){
+
+        DistanceRequest distanceRequest = mapperService.toEntity(distanceRequestDTO);
 
         //Calculate distance
-        double totalTimeInSec = distanceRequest.getTotalTime().getSec() + (distanceRequest.getTotalTime().getMin()*60) + (distanceRequest.getTotalTime().getHour() * 60 * 60);
-        double paceInSec = distanceRequest.getPace().getSec() + (distanceRequest.getPace().getMin()*60);
+        double totalTimeInSec = distanceRequest.getTotalTime().getSec() +
+                                (distanceRequest.getTotalTime().getMin()*60.0) +
+                                (distanceRequest.getTotalTime().getHour() * 3600.0);
+
+        double paceInSec = (double) distanceRequest.getPace().getSec() +
+                            (double) distanceRequest.getPace().getMin()*60.0;
 
         double distance = totalTimeInSec/paceInSec;
         int kilometer = (int) distance;
@@ -62,22 +78,24 @@ public class CalculatorService {
         //Save request
         distanceRequestRepository.save(distanceRequest);
 
-        return distanceCalculated;
+        return mapperService.toDTO(distanceCalculated);
     }
 
-    public  TotalTime calculateTotalTime(TotalTimeRequest  totalTimeRequest){
+    public TotalTimeDTO calculateTotalTime(TotalTimeRequestDTO totalTimeRequestDTO){
 
-        double min = totalTimeRequest.getPace().getMin() + (totalTimeRequest.getPace().getSec()/60.0);
-        double kilometer = totalTimeRequest.getDistance().getKilometer() + (totalTimeRequest.getDistance().getMeter()/1000.0);
+        TotalTimeRequest totalTimeRequest = mapperService.toEntity(totalTimeRequestDTO);
+
+        double paceInMin = totalTimeRequest.getPace().getMin() + (totalTimeRequest.getPace().getSec()/60.0);
+        double distanceInKilometer = totalTimeRequest.getDistance().getKilometer() + (totalTimeRequest.getDistance().getMeter()/1000.0);
 
         //Totaltime calculation in minutes
-        double totalTimeInMin= min*kilometer;
+        double totalTimeInMin= paceInMin*distanceInKilometer;
 
         //Totaltime calculation in hours
-        double hours = totalTimeInMin/60.0;
+        double totalTimeInHours = totalTimeInMin/60.0;
 
         //Hours int
-        int hourTotal = (int) hours;
+        int hourTotal = (int) totalTimeInHours;
 
         //Mins int
         double remainingMinutes = totalTimeInMin % 60;
@@ -94,7 +112,7 @@ public class CalculatorService {
         //Save request
         totalTimeRepository.save(totalTime);
 
-        return totalTime;
+        return mapperService.toDTO(totalTime);
     }
 
 }
