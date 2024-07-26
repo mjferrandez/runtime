@@ -1,11 +1,17 @@
 package com.runtime.runtime.model;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 
 @Entity
 @Data
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 @Table(name = "distanceRequest")
 public class DistanceRequest extends BaseRequest {
 
